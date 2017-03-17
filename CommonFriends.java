@@ -21,52 +21,55 @@ import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 
+
 public class CommonFriends{
-    public static class Map extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>{
-        public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter)
-            throws IOException{
-            //Get the string line
-            String line = value.toString();
+	public static String ListToText(List<String> list){
+		return list.toString()
+    		.replace(",", "")  //remove the commas
+    		.replace("[", "")  //remove the right bracket
+    		.replace("]", "")  //remove the left bracket
+    		.trim();           //remove trailing spaces from partially initialized arrays
+	}
 
-            //[0] Original user -> Rest == 
-            List<String> users = new ArrayList<String>(Arrays.asList(line.split(" ")));
-            
-            //Set important 
-            String mainUser = users.get(0);
-            users.remove(0);
+     public static class Map extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>{
+        public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter) throws IOException{
+        	//Get the string line
+        	String line = value.toString();
 
-            //Create tmp array
+        	//[0] Original user -> the rest == friends
+        	List<String> users = new ArrayList<String>(Arrays.asList(line.split(" ")));
+
+        	//Get the main user, remove it from the list to have an remaining friend list
+        	String mainUser = users.get(0); users.remove(0);
+
+        	//Temporary array to store some information
             String[] tempArray = new String[2];
 
-            for (String friend : users) {
+            //Loop for every friend
+            for (String friend : users){
+            	tempArray[0] = friend;
+            	tempArray[1] = mainUser;
 
-                tempArray[0] = friend;
-                tempArray[1] = mainUser;
-
-                //Sort the for the reducer
-                Arrays.sort(tempArray);
-
-                //Send 
-                System.out.println(tempArray[0] + "," + tempArray[1] + users.toString());
-                output.collect(new Text(tempArray[0] + "," + tempArray[1]), new Text(users.toString()));
+            	Arrays.sort(tempArray);
+            	output.collect(new Text(tempArray[0] + " " + tempArray[1]), new Text(ListToText(users)));
             }
         }
     }
 
     public static class Reduce extends MapReduceBase implements Reducer<Text, Text, Text, Text>{
         public void reduce(Text key, Iterator<Text> values, OutputCollector<Text, Text> output, Reporter reporter) throws IOException{
+            //Create an temporary array that can store 2 lists.. Every combination appears twice.
+            String[] friends = new String[2];
             
+            //Fill the friends array
+            for (int i = 0; i < 2; i++)
+            	friends[i] = values.next().toString();
 
-            Text[] texts = new Text[2];
-            int index = 0;
+            //Split them into different lists
+            String[] list1 = friends[0].split(" ");
+            String[] list2 = friends[1].split(" ");
 
-            while(values.hasNext()){
-                texts[index++] = new Text(values.next());
-            }
-
-            String[] list1 = texts[0].toString().split(" ");
-            String[] list2 = texts[1].toString().split(" ");
-
+            //Filter out the duplicates 
             List<String> list = new LinkedList<String>();
             for(String friend1 : list1){
                 for(String friend2 : list2){
@@ -76,6 +79,7 @@ public class CommonFriends{
                 }
             }
 
+            //Add them to an stringbuffer
             StringBuffer sb = new StringBuffer();
             for(int i = 0; i < list.size(); i++){
                     sb.append(list.get(i));
