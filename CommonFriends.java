@@ -1,5 +1,8 @@
+package nl.hu.hadoop;
+
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,40 +22,40 @@ import org.apache.hadoop.mapred.Reducer;
 import org.apache.hadoop.mapred.Reporter;
 
 public class CommonFriends{
-
-	public static class Map extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>{
+    public static class Map extends MapReduceBase implements Mapper<LongWritable, Text, Text, Text>{
         public void map(LongWritable key, Text value, OutputCollector<Text, Text> output, Reporter reporter)
             throws IOException{
             //Get the string line
-			String line = value.toString();
+            String line = value.toString();
 
-			//[0] Original user -> Rest == 
-			List<String> users = Arrays.asList(line.split(" "));
+            //[0] Original user -> Rest == 
+            List<String> users = new ArrayList<String>(Arrays.asList(line.split(" ")));
+            
+            //Set important 
+            String mainUser = users.get(0);
+            users.remove(0);
 
-			//Set important 
-			String mainUser = users.get(0);
-			users.remove(0);
+            //Create tmp array
+            String[] tempArray = new String[2];
 
-			//Create tmp array
-			String[] tempArray = new String[2];
+            for (String friend : users) {
 
-			for (String friend : users) {
+                tempArray[0] = friend;
+                tempArray[1] = mainUser;
 
-				tempArray[0] = friend;
-				tempArray[1] = mainUser;
+                //Sort the for the reducer
+                Arrays.sort(tempArray);
 
-				//Sort the for the reducer
-				Arrays.sort(tempArray);
-
-				//Send 
-				output.collect(new Text(tempArray[0] + " " + tempArray[1]), new Text(users.toString()));
-			}
+                //Send 
+                System.out.println(tempArray[0] + "," + tempArray[1] + users.toString());
+                output.collect(new Text(tempArray[0] + "," + tempArray[1]), new Text(users.toString()));
+            }
         }
     }
 
     public static class Reduce extends MapReduceBase implements Reducer<Text, Text, Text, Text>{
-        public void reduce(Text key, Iterator<Text> values, OutputCollector<Text, Text> output, Reporter reporter) 
-        	throws IOException{
+        public void reduce(Text key, Iterator<Text> values, OutputCollector<Text, Text> output, Reporter reporter) throws IOException{
+            
 
             Text[] texts = new Text[2];
             int index = 0;
@@ -85,7 +88,7 @@ public class CommonFriends{
     }
 
 	public static void main(String[] args) throws Exception{
-            JobConf conf = new JobConf(CommonFriends.class);
+		    JobConf conf = new JobConf(CommonFriends.class);
             conf.setJobName("Friend");
  
             conf.setMapperClass(Map.class);
@@ -102,62 +105,9 @@ public class CommonFriends{
  
             JobClient.runJob(conf);
     }	
-
-	
-
-
-
-	 
-
-
-
-	/*****************
-	* OLD CODE 
-	******************
-	public static class Map extends Mapper<LongWritable, Text, Text, Text> {
-		public void map(LongWritable offset, Text lineText, Context context)
-			throws IOException, InterruptedException {
-			
-			//Get the string line
-			String line = lineText.toString();
-
-			//[0] Original user -> Rest == 
-			List<String> users = Arrays.asList(line.split(" "));
-
-			//Set important 
-			String mainUser = users.get(0);
-			users.remove(0);
-
-			//Create tmp array
-			tempArray = new String[2];
-
-			for (String friend : users) {
-				tempArray[0] = friend;
-				tempArray[1] = mainUser;
-
-				//Sort the for the reducer
-				Arrays.sort(tempArray);
-
-				//Send 
-				context.write(new Text(tempArray[0] + " " + tempArray[1]), new Text(users.toString));
-			}
-		}
-	}
-
-
-
-	public static class Reduce extends Reducer<Text, Text, Text, Text> {
-		@Override
-		public void reduce(Text key, Iterable<Text> values, Context context)
-		throws IOException, InterruptedException {
-			
-
-			//context.write(word, new IntWritable(sum));
-
-		}
-	}
-	*/
 }
+
+
 
 
 
